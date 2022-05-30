@@ -5,10 +5,6 @@ import torch.utils.data
 import torch.backends.cudnn as cudnn
 import os
 import sys
-# from evaluator2 import *
-# from datahandler2 import DataHandler
-from neural_net_motifs import *
-from thop import clever_format, profile
 from datahandler import *
 from autoaugment import CIFAR10Policy, Cutout
 from convmixer import ConvMixer
@@ -65,29 +61,11 @@ torch.cuda.empty_cache()
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-# Data set
-#dataset = str(sys.argv[1])
-# num_conv_layers = int(sys.argv[2])  # 0
-
-# num_full_layers = int(sys.argv[3])  # 20
-#list_blocks = 10 * [-1]
-
-#for i in range(10):
-#    list_blocks[i] = int(sys.argv[i + 2])
-#indx = len(list_blocks)
-
 if device == 'cuda':
     net = torch.nn.DataParallel(model)
     cudnn.benchmark = True
 
-
-batch_size = 128
-
 print('==> Preparing data..')
-
-initial_image_size = 32
-total_classes = 10
-number_input_channels = 3
 
 transform_train = transforms.Compose(
     [
@@ -131,10 +109,8 @@ testloader = torch.utils.data.DataLoader(
 
 ##### Model #########
 
-#model = NeuralNet(list_blocks, initial_image_size, total_classes, number_input_channels, 0.2)
 model=ConvMixer(256,8,patch_size=2,kernel_size=5,n_classes=10)
 model.to(device)
-#print(model.parameters())
 #######################
 
 
@@ -143,22 +119,14 @@ model.to(device)
 print('==> Defining the Optimizer and its hyperparameters..')
 criterion = nn.CrossEntropyLoss()
 base_optimizer=optim.SGD
-#optimizer=SAM(model.parameters(), base_optimizer, lr=0.056873500000000, momentum=0.980121000000000, weight_decay=0.000800000000000)
-#dampening=0.211911800000000
 optimizer = optim.SGD(model.parameters(), lr=0.057, momentum=0.98, weight_decay=0.0008,dampening=0.22)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=140, eta_min=0.01)
 #################################
 
-print(model)
-pytorch_total_params = sum(p.numel() for p in model.parameters())
-print('nombre de prametres='+str(pytorch_total_params))
+# pytorch_total_params = sum(p.numel() for p in model.parameters())
+# print('nombre de prametres='+str(pytorch_total_params))
 
-# The evaluator trains and tests the network
-# evaluator = Evaluator(device, model, trainloader, testloader, optimizer, batch_size, dataset)
-#print('> Training')
-
-
-####### Entrainement ##############
+####### Training ##############
 
 start_epoch = 0
 training_accuracies = []
@@ -202,20 +170,3 @@ while execution_time < 600:
 
 print('Best valid acc', max(testing_accuracies))
 print('Best train acc', max(training_accuracies))
-
-fichier = open("/home/dageloui/Documents/nomad/Block_NAS-main/Challenge_test/fichier_accuracy_2.txt", "a")
-fichier.write("\n"+"Accuracy train Archi 1 :"+str(max(training_accuracies)))
-fichier.write("\n"+"Accuracy valid Archi 1 :"+str(max(testing_accuracies)))
-fichier.close()
-
-# best_val_acc, best_epoch, nb_epochs = evaluator.train()
-cnt = 1
-dsize = (1, 3, 32, 32)
-inputs = torch.randn(dsize).to(device)
-macs, params = profile(model, (inputs,), verbose=False)
-
-# # Output of the blackbox
-# print('> Final accuracy %.3f' % best_val_acc)
-# print('Count eval', cnt)
-# print('Number of epochs ', nb_epochs)
-print('MACS and NB_PARAMS', macs, params)
